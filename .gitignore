@@ -1,0 +1,3 @@
+.env
+docker/mongodb/data
+.idea

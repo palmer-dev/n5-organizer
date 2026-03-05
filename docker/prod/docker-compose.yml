@@ -1,0 +1,77 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb-prod
+    hostname: mongodb
+    restart: always
+    volumes:
+      - ../../mongodb/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - mongodb-data:/data/db/
+      - mongodb-log:/var/log/mongodb/
+    env_file:
+      - .env
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    ports:
+      - "27017:27017"
+    networks:
+      - app_network_prod
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  backend:
+    image: node:lts-alpine3.22
+    container_name: backend-prod
+    working_dir: /app
+    restart: always
+    volumes:
+      - ../../backend:/app
+      - /app/node_modules
+    command: sh -c "npm install --include=dev && npm run build && npm run start"
+    ports:
+      - "${BACKEND_PORT:-5001}:5001"
+    env_file:
+      - .env
+    environment:
+      MONGO_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017
+      APP_PORT: 5001
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - app_network_prod
+
+  frontend:
+    image: node:lts-alpine3.22
+    container_name: frontend-prod
+    working_dir: /app
+    restart: always
+    volumes:
+      - ../../frontend:/app
+    command: sh -c "npm install --include=dev && npm run build && npm run preview -- --host --port 3000"
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    networks:
+      - app_network_prod
+
+volumes:
+  mongodb-data:
+    driver: local
+    name: mongo-data-prod
+  mongodb-log:
+    driver: local
+    name: mongo-log-prod
+
+networks:
+  app_network_prod:
+    driver: bridge
+    name: app-network-prod
