@@ -1,0 +1,7 @@
+[submodule "backend"]
+	path = backend
+	url = https://github.com/palmer-dev/n5-organizer-api.git
+
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/palmer-dev/n5-organizer-frontend.git
